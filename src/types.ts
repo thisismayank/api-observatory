@@ -103,6 +103,11 @@ export interface ResolvedOptions {
 /** Resolves user-provided options into fully-populated options */
 export function resolveOptions(opts?: ObservatoryOptions): ResolvedOptions {
   const mountPath = opts?.mountPath ?? '/_observatory';
+
+  // Allow env override: OBSERVATORY_CAPTURE_SCHEMAS=true
+  const envSchemas = typeof process !== 'undefined' && process.env?.OBSERVATORY_CAPTURE_SCHEMAS;
+  const captureSchemas = opts?.captureSchemas ?? (envSchemas === 'true');
+
   return {
     mountPath,
     includePaths: opts?.includePaths ?? [],
@@ -111,7 +116,7 @@ export function resolveOptions(opts?: ObservatoryOptions): ResolvedOptions {
     maxPerEndpoint: opts?.maxPerEndpoint ?? 10_000,
     percentiles: opts?.percentiles ?? [50, 95, 99],
     htmlDashboard: opts?.htmlDashboard ?? true,
-    captureSchemas: opts?.captureSchemas ?? false,
+    captureSchemas,
     onRecord: opts?.onRecord,
   };
 }
