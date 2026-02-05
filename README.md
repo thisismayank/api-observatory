@@ -54,7 +54,7 @@ See every endpoint's request count, P50/P95/P99 latency, error rates, and throug
 Enable schema capture and API Observatory builds Swagger-like documentation from your live traffic — no manual spec writing needed. Endpoints are grouped by path prefix, path parameters are highlighted, and request/response schemas are inferred automatically.
 
 <p align="center">
-  <img src="docs/screenshots/api-observatory-api-docs.png" alt="API Observatory — API Documentation" width="100%" />
+  <img src="docs/screenshots/api-observatory-api-docs-blurred.png" alt="API Observatory — API Documentation" width="100%" />
 </p>
 
 ### Interactive Guide
