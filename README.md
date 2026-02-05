@@ -27,6 +27,18 @@ I wanted something I could drop into any Express/Fastify/Koa app and immediately
 
 The API docs feature came next. I was tired of maintaining OpenAPI specs that drifted from reality within a week. If the middleware is already watching every request and response, why not infer the schemas automatically? So it does — you get Swagger-like docs generated from your live traffic, always accurate, always current.
 
+## What This Is (and Isn’t)
+
+This is not a replacement for full observability stacks.
+It’s a lightweight, in-app way to answer:
+
+- Which endpoints are slow?
+- How bad is the tail latency?
+- Are errors creeping up?
+
+If you need distributed tracing across 20 services, use the big tools.
+If you want answers in 30 seconds, use this.
+
 ## What You Get
 
 ### Metrics Dashboard
@@ -55,14 +67,14 @@ A built-in reference explaining what each metric means, how to act on them, and 
 
 ## Why API Observatory?
 
-| | |
-|---|---|
-| **Zero dependencies** | No runtime dependencies. Nothing to audit, nothing to break. |
-| **Zero config** | Works out of the box with sensible defaults. |
-| **Off the hot path** | Metrics are recorded via `setImmediate()` — your response times stay the same. |
-| **Fixed memory** | Circular buffer storage with automatic eviction. No memory leaks. |
-| **Three frameworks** | Express, Fastify, and Koa adapters with identical feature sets. |
-| **Schema inference** | Auto-generates API docs from live traffic — no OpenAPI spec required. |
+|                       |                                                                                |
+| --------------------- | ------------------------------------------------------------------------------ |
+| **Zero dependencies** | No runtime dependencies. Nothing to audit, nothing to break.                   |
+| **Zero config**       | Works out of the box with sensible defaults.                                   |
+| **Off the hot path**  | Metrics are recorded via `setImmediate()` — your response times stay the same. |
+| **Fixed memory**      | Circular buffer storage with automatic eviction. No memory leaks.              |
+| **Three frameworks**  | Express, Fastify, and Koa adapters with identical feature sets.                |
+| **Schema inference**  | Auto-generates API docs from live traffic — no OpenAPI spec required.          |
 
 ## Quick Start
 
@@ -73,8 +85,8 @@ npm install api-observatory
 ### Express
 
 ```js
-import express from 'express';
-import { expressObservatory } from 'api-observatory';
+import express from "express";
+import { expressObservatory } from "api-observatory";
 
 const app = express();
 app.use(expressObservatory()); // Mount FIRST
@@ -86,8 +98,8 @@ app.listen(3000);
 ### Fastify
 
 ```js
-import Fastify from 'fastify';
-import { fastifyObservatory } from 'api-observatory';
+import Fastify from "fastify";
+import { fastifyObservatory } from "api-observatory";
 
 const app = Fastify();
 app.register(fastifyObservatory);
@@ -98,8 +110,8 @@ app.listen({ port: 3000 });
 ### Koa
 
 ```js
-import Koa from 'koa';
-import { koaObservatory } from 'api-observatory';
+import Koa from "koa";
+import { koaObservatory } from "api-observatory";
 
 const app = new Koa();
 app.use(koaObservatory()); // Mount FIRST
@@ -107,18 +119,20 @@ app.use(koaObservatory()); // Mount FIRST
 app.listen(3000);
 ```
 
-Then open **http://localhost:3000/_observatory** in your browser.
+Then open **http://localhost:3000/\_observatory** in your browser.
 
 ## Schema Capture (API Docs)
 
 Schema capture intercepts request and response bodies to build inferred JSON schemas from live traffic. Enable it to get the API Docs tab.
 
 **In code:**
+
 ```js
 app.use(expressObservatory({ captureSchemas: true }));
 ```
 
 **Or via environment variable:**
+
 ```
 OBSERVATORY_CAPTURE_SCHEMAS=true
 ```
@@ -153,42 +167,42 @@ app.use(expressObservatory({
 }));
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `mountPath` | `string` | `/_observatory` | Dashboard URL path |
-| `includePaths` | `string[]` | `[]` | Glob patterns to track (empty = all) |
-| `excludePaths` | `string[]` | `[mountPath, ...]` | Glob patterns to skip |
-| `retentionMs` | `number` | `3_600_000` | Metrics retention window (ms) |
-| `maxPerEndpoint` | `number` | `10_000` | Max records per endpoint |
-| `percentiles` | `number[]` | `[50, 95, 99]` | Percentiles to compute |
-| `htmlDashboard` | `boolean` | `true` | Serve HTML dashboard |
-| `captureSchemas` | `boolean` | `false` | Enable schema capture |
-| `onRecord` | `function` | — | Callback after each record |
+| Option           | Type       | Default            | Description                          |
+| ---------------- | ---------- | ------------------ | ------------------------------------ |
+| `mountPath`      | `string`   | `/_observatory`    | Dashboard URL path                   |
+| `includePaths`   | `string[]` | `[]`               | Glob patterns to track (empty = all) |
+| `excludePaths`   | `string[]` | `[mountPath, ...]` | Glob patterns to skip                |
+| `retentionMs`    | `number`   | `3_600_000`        | Metrics retention window (ms)        |
+| `maxPerEndpoint` | `number`   | `10_000`           | Max records per endpoint             |
+| `percentiles`    | `number[]` | `[50, 95, 99]`     | Percentiles to compute               |
+| `htmlDashboard`  | `boolean`  | `true`             | Serve HTML dashboard                 |
+| `captureSchemas` | `boolean`  | `false`            | Enable schema capture                |
+| `onRecord`       | `function` | —                  | Callback after each record           |
 
-| Environment Variable | Description |
-|---------------------|-------------|
+| Environment Variable          | Description                                                 |
+| ----------------------------- | ----------------------------------------------------------- |
 | `OBSERVATORY_CAPTURE_SCHEMAS` | Set to `true` to enable schema capture without code changes |
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/_observatory` | HTML dashboard (or JSON if `htmlDashboard: false`) |
-| `GET` | `/_observatory/metrics` | All endpoint metrics as JSON |
-| `GET` | `/_observatory/metrics/:method/*` | Single endpoint metrics |
-| `GET` | `/_observatory/schemas` | All captured schemas as JSON |
-| `GET` | `/_observatory/schemas/:method/*` | Single endpoint schema |
-| `POST` | `/_observatory/reset` | Clear all metrics and schemas |
+| Method | Path                              | Description                                        |
+| ------ | --------------------------------- | -------------------------------------------------- |
+| `GET`  | `/_observatory`                   | HTML dashboard (or JSON if `htmlDashboard: false`) |
+| `GET`  | `/_observatory/metrics`           | All endpoint metrics as JSON                       |
+| `GET`  | `/_observatory/metrics/:method/*` | Single endpoint metrics                            |
+| `GET`  | `/_observatory/schemas`           | All captured schemas as JSON                       |
+| `GET`  | `/_observatory/schemas/:method/*` | Single endpoint schema                             |
+| `POST` | `/_observatory/reset`             | Clear all metrics and schemas                      |
 
 ## Route Extraction
 
 API Observatory automatically extracts parameterized route patterns (e.g., `/v1/users/:id`) instead of raw URLs. When route info is unavailable, it normalizes paths by replacing UUIDs, ObjectIds, and numeric IDs with `:id`.
 
-| Framework | Source |
-|-----------|--------|
-| Express | `req.baseUrl + req.route.path` |
-| Fastify | `request.routeOptions.url` |
-| Koa | `ctx._matchedRoute` |
+| Framework | Source                         |
+| --------- | ------------------------------ |
+| Express   | `req.baseUrl + req.route.path` |
+| Fastify   | `request.routeOptions.url`     |
+| Koa       | `ctx._matchedRoute`            |
 
 ## Requirements
 
