@@ -19,6 +19,14 @@
 
 Add two lines of code. Get a full metrics dashboard, auto-generated API docs, and an interactive guide — all served from your running app at `/_observatory`.
 
+## Why I Built This
+
+Every API starts the same way: you build endpoints, ship them, and assume they're fast enough. Then one day a user reports that "the app feels slow." You open your terminal, realize you have no idea which endpoint is the bottleneck, and start googling how to set up Prometheus with Grafana. An hour later you're writing YAML files and configuring dashboards instead of fixing the actual problem.
+
+I wanted something I could drop into any Express/Fastify/Koa app and immediately see which endpoints are slow, what the P95 looks like, and whether error rates are climbing — without installing a single dependency, without configuring an external service, without leaving my app. Two lines of code, open a browser tab, done.
+
+The API docs feature came next. I was tired of maintaining OpenAPI specs that drifted from reality within a week. If the middleware is already watching every request and response, why not infer the schemas automatically? So it does — you get Swagger-like docs generated from your live traffic, always accurate, always current.
+
 ## What You Get
 
 ### Metrics Dashboard
