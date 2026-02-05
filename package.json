@@ -1,6 +1,6 @@
 {
   "name": "api-observatory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "API Traffic Metrics & Latency Percentiles — zero-dependency core with Express, Fastify, and Koa adapters",
   "author": "thisismayank",
   "license": "MIT",
