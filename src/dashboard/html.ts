@@ -2,21 +2,28 @@
  * Self-contained HTML dashboard template.
  * Inline CSS + JS, no external assets.
  * Auto-refreshes every 10s via fetch().
- * When schemasEnabled is true, adds an "API Docs" tab with Swagger-like schema rendering.
+ *
+ * Tabs:
+ *  - Metrics (always)
+ *  - API Docs (when schemasEnabled)
+ *  - Guide (always — Q&A about metrics and API optimisation)
  */
 export function buildHtmlDashboard(mountPath: string, schemasEnabled = false): string {
   const metricsUrl = `${mountPath}/metrics`;
   const resetUrl = `${mountPath}/reset`;
   const schemasUrl = `${mountPath}/schemas`;
 
-  const schemaCss = schemasEnabled ? `
-  .nav-bar { display: flex; gap: 2px; margin-bottom: 24px; background: #1e293b; border-radius: 8px; padding: 4px; width: fit-content; }
-  .nav-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
-  .nav-btn:hover { color: #e2e8f0; }
-  .nav-btn.active { background: #3b82f6; color: #fff; }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
+  // --- Tab names for nav ---
+  const tabs: Array<{ id: string; label: string }> = [
+    { id: 'metrics', label: 'Metrics' },
+  ];
+  if (schemasEnabled) tabs.push({ id: 'schemas', label: 'API Docs' });
+  tabs.push({ id: 'guide', label: 'Guide' });
 
+  const tabLabelsJson = JSON.stringify(tabs);
+
+  // --- CSS ---
+  const schemaCss = schemasEnabled ? `
   /* Swagger-like schema styles */
   .schema-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .schema-title { font-size: 1.25rem; color: #f8fafc; font-weight: 700; }
@@ -87,12 +94,7 @@ export function buildHtmlDashboard(mountPath: string, schemasEnabled = false): s
   .schema-list-empty-text { font-size: 0.9rem; }
   .schema-list-empty-hint { font-size: 0.75rem; margin-top: 6px; color: #475569; }` : '';
 
-  const navBarHtml = schemasEnabled ? `
-<div class="nav-bar">
-  <button class="nav-btn active" onclick="switchTab('metrics')">Metrics</button>
-  <button class="nav-btn" onclick="switchTab('schemas')">API Docs</button>
-</div>` : '';
-
+  // --- Schema panel HTML ---
   const schemaPanelHtml = schemasEnabled
     ? `<div id="panel-schemas" class="tab-panel">
   <div class="schema-header-bar">
@@ -103,20 +105,12 @@ export function buildHtmlDashboard(mountPath: string, schemasEnabled = false): s
 </div>`
     : '';
 
+  // --- Schema JS ---
   const schemaJs = schemasEnabled ? `
 var schemasUrl = '${schemasUrl}';
 var schemaListEl = document.getElementById('schema-list');
 var schemaCountEl = document.getElementById('schema-count');
 var allSchemaEndpoints = [];
-
-function switchTab(tab) {
-  document.querySelectorAll('.nav-btn').forEach(function(b) {
-    b.classList.toggle('active', b.textContent.trim() === (tab === 'metrics' ? 'Metrics' : 'API Docs'));
-  });
-  document.getElementById('panel-metrics').classList.toggle('active', tab === 'metrics');
-  document.getElementById('panel-schemas').classList.toggle('active', tab === 'schemas');
-  if (tab === 'schemas') loadSchemas();
-}
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -184,7 +178,6 @@ function groupEndpoints(endpoints) {
     if (!groups[prefix]) { groups[prefix] = []; order.push(prefix); }
     groups[prefix].push(e);
   });
-  // Sort endpoints within each group: method order then path
   var methodOrder = { GET: 0, POST: 1, PUT: 2, PATCH: 3, DELETE: 4, OPTIONS: 5, HEAD: 6 };
   order.forEach(function(prefix) {
     groups[prefix].sort(function(a, b) {
@@ -298,9 +291,10 @@ async function loadSchemas() {
 }
 ` : '';
 
-  // Wrap existing content in a panel div when tabs are enabled
-  const metricsOpenTag = schemasEnabled ? '<div id="panel-metrics" class="tab-panel active">' : '';
-  const metricsCloseTag = schemasEnabled ? '</div>' : '';
+  // --- Nav bar buttons ---
+  const navButtons = tabs.map((t, i) =>
+    `<button class="nav-btn${i === 0 ? ' active' : ''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">${t.label}</button>`
+  ).join('\n    ');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -313,6 +307,15 @@ async function loadSchemas() {
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
   h1 { font-size: 1.5rem; margin-bottom: 8px; color: #f8fafc; }
   .subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 0.875rem; }
+
+  /* Nav bar & tabs — always present */
+  .nav-bar { display: flex; gap: 2px; margin-bottom: 24px; background: #1e293b; border-radius: 8px; padding: 4px; width: fit-content; }
+  .nav-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
+  .nav-btn:hover { color: #e2e8f0; }
+  .nav-btn.active { background: #3b82f6; color: #fff; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
   .controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
   .controls button { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
   .controls button:hover { background: #334155; }
@@ -335,39 +338,314 @@ async function loadSchemas() {
   .err-red { color: #f87171; }
   .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
   .right { text-align: right; }
-  .empty { text-align: center; padding: 40px; color: #64748b; }${schemaCss}
+  .empty { text-align: center; padding: 40px; color: #64748b; }
+
+  /* Guide / Q&A styles */
+  .guide-header { font-size: 1.25rem; color: #f8fafc; font-weight: 700; margin-bottom: 6px; }
+  .guide-subtitle { color: #64748b; font-size: 0.8rem; margin-bottom: 28px; }
+  .guide-section { margin-bottom: 32px; }
+  .guide-section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: #3b82f6; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
+  .qa-item { background: #1e293b; border: 1px solid #334155; border-radius: 8px; margin-bottom: 6px; overflow: hidden; transition: border-color 0.15s; }
+  .qa-item.open { border-color: #475569; }
+  .qa-q { display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; user-select: none; transition: background 0.15s; }
+  .qa-q:hover { background: #243044; }
+  .qa-chevron { color: #475569; font-size: 0.6rem; transition: transform 0.2s; display: inline-block; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(90deg); }
+  .qa-q-text { color: #e2e8f0; font-size: 0.88rem; font-weight: 600; }
+  .qa-a { display: none; padding: 0 16px 16px 42px; }
+  .qa-item.open .qa-a { display: block; }
+  .qa-a p { color: #94a3b8; font-size: 0.82rem; line-height: 1.7; margin-bottom: 10px; }
+  .qa-a p:last-child { margin-bottom: 0; }
+  .qa-a code { background: #0f172a; color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem; }
+  .qa-a ul { color: #94a3b8; font-size: 0.82rem; line-height: 1.7; margin: 0 0 10px 18px; }
+  .qa-a li { margin-bottom: 4px; }
+  .qa-a strong { color: #e2e8f0; }
+  .qa-tip { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 6px; padding: 10px 14px; margin-top: 8px; }
+  .qa-tip-label { color: #60a5fa; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .qa-tip p { color: #94a3b8; font-size: 0.78rem; margin-bottom: 0; }
+${schemaCss}
 </style>
 </head>
 <body>
 <h1>API Observatory</h1>
-<p class="subtitle">Real-time API traffic metrics &amp; latency percentiles</p>${navBarHtml}
-<div class="controls">
-  <button onclick="refresh()">Refresh</button>
-  <button onclick="resetMetrics()">Reset</button>
-  <span class="status" id="status">Loading...</span>
+<p class="subtitle">Real-time API traffic metrics &amp; latency percentiles</p>
+<div class="nav-bar">
+    ${navButtons}
 </div>
-${metricsOpenTag}<table>
-  <thead>
-    <tr>
-      <th>Method</th>
-      <th>Pattern</th>
-      <th class="right">Count</th>
-      <th class="right">p50</th>
-      <th class="right">p95</th>
-      <th class="right">p99</th>
-      <th class="right">Avg</th>
-      <th class="right">Err%</th>
-      <th class="right">Req/s</th>
-    </tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>${metricsCloseTag}
+<div id="panel-metrics" class="tab-panel active">
+  <div class="controls">
+    <button onclick="refresh()">Refresh</button>
+    <button onclick="resetMetrics()">Reset</button>
+    <span class="status" id="status">Loading...</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Pattern</th>
+        <th class="right">Count</th>
+        <th class="right">p50</th>
+        <th class="right">p95</th>
+        <th class="right">p99</th>
+        <th class="right">Avg</th>
+        <th class="right">Err%</th>
+        <th class="right">Req/s</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
 ${schemaPanelHtml}
+<div id="panel-guide" class="tab-panel">
+  <div class="guide-header">Guide</div>
+  <div class="guide-subtitle">Understanding your API metrics and how to act on them</div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Understanding the Metrics</div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">What does P50 / P95 / P99 latency mean?</span></div>
+      <div class="qa-a">
+        <p>Percentile latencies tell you how fast your API responds for a given proportion of requests:</p>
+        <ul>
+          <li><strong>P50 (median)</strong> &mdash; 50% of requests are faster than this value. This is your &ldquo;typical&rdquo; response time.</li>
+          <li><strong>P95</strong> &mdash; 95% of requests are faster. The remaining 5% are slower. This captures the experience of your slower users.</li>
+          <li><strong>P99</strong> &mdash; 99% of requests are faster. Only 1 in 100 requests is slower. This is your tail latency and often reveals database lock contention, cold caches, or GC pauses.</li>
+        </ul>
+        <div class="qa-tip">
+          <div class="qa-tip-label">Why it matters</div>
+          <p>Averages hide outliers. An endpoint with 50ms average can have a P99 of 2 seconds, meaning 1% of your users experience a 2-second wait. Always monitor P95/P99 alongside averages.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">What does the error rate (Err%) represent?</span></div>
+      <div class="qa-a">
+        <p>The error rate is the percentage of responses with 4xx or 5xx HTTP status codes within the retention window.</p>
+        <ul>
+          <li><strong>4xx errors</strong> &mdash; Client errors (bad request, not found, unauthorized). Some are expected (404 on missing resources), but a high rate may indicate broken clients or incorrect API usage.</li>
+          <li><strong>5xx errors</strong> &mdash; Server errors (internal server error, bad gateway). These always indicate problems &mdash; bugs, crashed dependencies, or resource exhaustion.</li>
+        </ul>
+        <p>Color coding: <strong style="color:#34d399">&lt;1% green</strong>, <strong style="color:#fbbf24">1-5% yellow</strong>, <strong style="color:#f87171">&gt;5% red</strong>.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">What is throughput (Req/s)?</span></div>
+      <div class="qa-a">
+        <p>Throughput measures how many requests per second an endpoint receives, calculated over the time span between the oldest and newest recorded request.</p>
+        <p>Use it to identify your hottest endpoints. High throughput endpoints deserve the most optimization attention since even small improvements have large aggregate impact.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">What does the latency color coding mean?</span></div>
+      <div class="qa-a">
+        <p>Latency values are color-coded to help you spot problems at a glance:</p>
+        <ul>
+          <li><strong style="color:#34d399">Green (&lt;100ms)</strong> &mdash; Fast. Good performance for most API endpoints.</li>
+          <li><strong style="color:#fbbf24">Yellow (100-500ms)</strong> &mdash; Moderate. Acceptable for complex queries, but investigate if this is a simple CRUD endpoint.</li>
+          <li><strong style="color:#f87171">Red (&gt;500ms)</strong> &mdash; Slow. Users will notice. Prioritize optimization.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">How long is data retained?</span></div>
+      <div class="qa-a">
+        <p>By default, metrics are retained for <strong>1 hour</strong> (configurable via the <code>retentionMs</code> option). Records older than the retention window are automatically evicted.</p>
+        <p>Each endpoint stores up to <strong>10,000 records</strong> (configurable via <code>maxPerEndpoint</code>) in a circular buffer. When full, the oldest record is overwritten.</p>
+        <p>All data is in-memory. Restarting the server clears all metrics and schemas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Acting on Your Metrics</div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">My P99 is much higher than P50. What should I investigate?</span></div>
+      <div class="qa-a">
+        <p>A large gap between P50 and P99 (e.g., P50=30ms, P99=1200ms) indicates tail latency caused by intermittent slowdowns. Common causes:</p>
+        <ul>
+          <li><strong>Database query variability</strong> &mdash; Unindexed queries that are fast on small result sets but slow on large ones. Check for missing indexes or N+1 queries.</li>
+          <li><strong>Cold caches</strong> &mdash; Requests that miss the cache hit a slow backend (database, external API). Check cache hit rates.</li>
+          <li><strong>Garbage collection pauses</strong> &mdash; Node.js GC can cause 50-200ms pauses. Monitor with <code>--trace-gc</code> flag.</li>
+          <li><strong>Connection pool exhaustion</strong> &mdash; When all DB connections are in use, requests queue. Increase pool size or optimize query duration.</li>
+          <li><strong>External API latency</strong> &mdash; Third-party APIs with variable response times. Add timeouts and circuit breakers.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">Which endpoints should I optimize first?</span></div>
+      <div class="qa-a">
+        <p>Prioritize by <strong>impact = throughput &times; latency</strong>. An endpoint with 100 req/s at 200ms has more impact than one with 1 req/s at 2 seconds.</p>
+        <ul>
+          <li>Sort by <strong>Req/s</strong> to find your most-called endpoints</li>
+          <li>Look for <strong>red latency</strong> values in high-throughput endpoints</li>
+          <li>Check <strong>error rates</strong> &mdash; a 10% error rate on a busy endpoint means many failed user experiences</li>
+        </ul>
+        <div class="qa-tip">
+          <div class="qa-tip-label">Quick wins</div>
+          <p>Start with the endpoint that has the highest combination of request count and latency. A 50% improvement on your busiest endpoint saves more total time than a 90% improvement on a rarely-used one.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">How can I reduce API response times?</span></div>
+      <div class="qa-a">
+        <p>Common strategies, roughly ordered by effort:</p>
+        <ul>
+          <li><strong>Add database indexes</strong> &mdash; Use <code>EXPLAIN</code> on slow queries. Missing indexes are the #1 cause of slow APIs.</li>
+          <li><strong>Reduce payload size</strong> &mdash; Only return fields the client needs. Use sparse fieldsets or GraphQL-style field selection.</li>
+          <li><strong>Add caching</strong> &mdash; Cache frequently-read, rarely-written data. Use Redis, in-memory LRU, or HTTP cache headers (<code>ETag</code>, <code>Cache-Control</code>).</li>
+          <li><strong>Fix N+1 queries</strong> &mdash; If fetching a list triggers one query per item, use eager loading, joins, or batch queries.</li>
+          <li><strong>Parallelize work</strong> &mdash; If an endpoint calls 3 independent services sequentially, use <code>Promise.all()</code> to call them concurrently.</li>
+          <li><strong>Paginate large results</strong> &mdash; Never return unbounded lists. Use cursor-based pagination for stable performance.</li>
+          <li><strong>Compress responses</strong> &mdash; Enable gzip/brotli compression middleware to reduce transfer time for large JSON payloads.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">What causes high error rates and how do I fix them?</span></div>
+      <div class="qa-a">
+        <p><strong>High 4xx rates:</strong></p>
+        <ul>
+          <li>Malformed client requests &mdash; add input validation with clear error messages</li>
+          <li>Stale client code hitting removed endpoints &mdash; use API versioning</li>
+          <li>Authentication failures &mdash; check token expiry, CORS config, and auth middleware order</li>
+        </ul>
+        <p><strong>High 5xx rates:</strong></p>
+        <ul>
+          <li>Unhandled exceptions &mdash; add proper error handling middleware</li>
+          <li>Database connection failures &mdash; check pool health and connection limits</li>
+          <li>Downstream service outages &mdash; add circuit breakers and fallback responses</li>
+          <li>Memory/CPU exhaustion &mdash; profile your application and check for memory leaks</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">I see OPTIONS requests everywhere. Should I worry?</span></div>
+      <div class="qa-a">
+        <p><strong>OPTIONS</strong> requests are CORS preflight checks sent automatically by browsers before cross-origin requests. They are normal and expected when your frontend and API are on different domains.</p>
+        <p>If they have high latency, your CORS middleware may be doing unnecessary work. Make sure it short-circuits early:</p>
+        <ul>
+          <li>Mount CORS middleware before authentication and body parsing</li>
+          <li>Set <code>Access-Control-Max-Age</code> header to cache preflight results (e.g., 86400 for 24 hours)</li>
+        </ul>
+        <p>If you want to exclude them from your metrics, use the <code>excludePaths</code> option or filter by method in your analysis.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">API Design Best Practices</div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">How should I structure my API response format?</span></div>
+      <div class="qa-a">
+        <p>Use a consistent envelope structure across all endpoints:</p>
+        <ul>
+          <li>Always include a <code>success</code> boolean or HTTP status code</li>
+          <li>Wrap data in a <code>data</code> or <code>results</code> key</li>
+          <li>Include pagination metadata (<code>total</code>, <code>page</code>, <code>limit</code>, <code>nextCursor</code>) for list endpoints</li>
+          <li>Use a consistent error format with <code>message</code>, <code>code</code>, and optional <code>details</code></li>
+        </ul>
+        <div class="qa-tip">
+          <div class="qa-tip-label">Schema capture</div>
+          <p>Enable <code>captureSchemas: true</code> to automatically see your current response structures in the API Docs tab. This helps identify inconsistencies across endpoints.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">When should I use caching vs. optimizing the query?</span></div>
+      <div class="qa-a">
+        <p>Start with the query. Caching adds complexity (invalidation, stale data, memory). Optimize the query first:</p>
+        <ul>
+          <li><strong>Optimize first</strong> if the data changes frequently, correctness is critical, or the query can be made fast with indexes</li>
+          <li><strong>Cache</strong> if the data is read-heavy and rarely changes, the computation is inherently expensive (aggregations, joins across services), or the upstream source is slow (external APIs)</li>
+        </ul>
+        <p>When caching, prefer <strong>short TTLs</strong> (30s-5min) over long ones. Short TTLs limit stale data while still absorbing traffic spikes. Use cache-aside pattern (check cache, miss = query + store) rather than write-through for simplicity.</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">How do I handle API versioning?</span></div>
+      <div class="qa-a">
+        <p>Common approaches:</p>
+        <ul>
+          <li><strong>URL prefix</strong> (e.g., <code>/v1/users</code>, <code>/v2/users</code>) &mdash; simplest, most visible, easiest to route. Works well with API Observatory since each version appears as a distinct endpoint pattern.</li>
+          <li><strong>Header-based</strong> (e.g., <code>Accept: application/vnd.api.v2+json</code>) &mdash; cleaner URLs but harder to test in browsers and less discoverable.</li>
+          <li><strong>Query parameter</strong> (e.g., <code>?version=2</code>) &mdash; easy to use but pollutes the URL.</li>
+        </ul>
+        <p>URL prefix is recommended for most APIs. When introducing a new version, keep the old one running and monitor its traffic in the Metrics tab to know when it&rsquo;s safe to deprecate.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">About API Observatory</div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">Does API Observatory affect my application&rsquo;s performance?</span></div>
+      <div class="qa-a">
+        <p><strong>Metrics collection (default mode):</strong> Minimal impact. Timing uses <code>process.hrtime.bigint()</code> (nanosecond precision, near-zero cost). Recording happens in <code>setImmediate()</code> after the response is sent, so it does not block the response.</p>
+        <p><strong>Schema capture (<code>captureSchemas: true</code>):</strong> Additional overhead from intercepting <code>res.json()</code>, inferring schemas, computing hashes, and merging. All processing is off the hot path via <code>setImmediate()</code>, but does consume background CPU proportional to response body size.</p>
+        <div class="qa-tip">
+          <div class="qa-tip-label">Recommendation</div>
+          <p>Keep <code>captureSchemas</code> disabled in high-throughput production environments. Enable it in staging, development, or during dedicated profiling sessions. Use the <code>OBSERVATORY_CAPTURE_SCHEMAS</code> env var for easy toggling without code changes.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">Is data persisted across restarts?</span></div>
+      <div class="qa-a">
+        <p>No. All metrics and schemas are stored in-memory and are lost when the process restarts. API Observatory is designed for live debugging and development, not long-term storage.</p>
+        <p>For persistent metrics, use the <code>onRecord</code> callback to forward records to an external time-series database (Prometheus, InfluxDB, Datadog, etc.).</p>
+      </div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q" onclick="toggleQa(this)"><span class="qa-chevron">&#9654;</span><span class="qa-q-text">How do I secure the dashboard in production?</span></div>
+      <div class="qa-a">
+        <p>API Observatory exposes metrics at a public URL by default. To restrict access:</p>
+        <ul>
+          <li>Place authentication middleware before the observatory middleware for the mount path</li>
+          <li>Use a non-obvious mount path (e.g., <code>/_internal/metrics</code>)</li>
+          <li>Use network-level restrictions (VPN, IP allowlist, reverse proxy rules)</li>
+          <li>Set <code>htmlDashboard: false</code> to disable the HTML UI and only expose JSON APIs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
+var TABS = ${tabLabelsJson};
 var metricsUrl = '${metricsUrl}';
 var resetUrl = '${resetUrl}';
 var tbody = document.getElementById('tbody');
 var status = document.getElementById('status');
+
+function switchTab(tabId) {
+  TABS.forEach(function(t) {
+    var panel = document.getElementById('panel-' + t.id);
+    var btn = document.querySelector('.nav-btn[data-tab="' + t.id + '"]');
+    if (panel) panel.classList.toggle('active', t.id === tabId);
+    if (btn) btn.classList.toggle('active', t.id === tabId);
+  });
+  if (tabId === 'schemas' && typeof loadSchemas === 'function') loadSchemas();
+}
+
+function toggleQa(el) {
+  el.closest('.qa-item').classList.toggle('open');
+}
 
 function latClass(ms) { return ms < 100 ? 'lat-green' : ms < 500 ? 'lat-yellow' : 'lat-red'; }
 function errClass(rate) { return rate < 0.01 ? 'err-green' : rate < 0.05 ? 'err-yellow' : 'err-red'; }
